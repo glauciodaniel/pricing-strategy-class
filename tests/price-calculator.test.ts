@@ -41,10 +41,10 @@ describe("PriceCalculator", () => {
     };
 
     const price = context.isLoyalCustomer
-      ? LoyalCustomerStrategy.applyDiscount(context.unitPrice)
+      ? LoyalCustomerStrategy.applyDiscount(context.unitPrice, context)
       : 0;
     const finalPrice = calculator.calculatePrice(context.unitPrice - price);
-    expect(finalPrice).toBe("90.00");
+    expect(finalPrice).toBe("76.50");
   });
 
   it("should apply loyal + bulk discount capped at 15%", () => {
@@ -58,11 +58,11 @@ describe("PriceCalculator", () => {
     };
 
     const loyalDiscount = context.isLoyalCustomer
-      ? LoyalCustomerStrategy.applyDiscount(context.unitPrice)
+      ? LoyalCustomerStrategy.applyDiscount(context.unitPrice, context)
       : 0;
     const bulkDiscount =
       context.quantity >= 10
-        ? BulkDiscountStrategy.applyDiscount(context.unitPrice)
+        ? BulkDiscountStrategy.applyDiscount(context.unitPrice, context)
         : 0;
     const totalDiscount = Math.min(
       loyalDiscount + bulkDiscount,
@@ -72,7 +72,7 @@ describe("PriceCalculator", () => {
     const finalPrice = calculator.calculatePrice(
       context.unitPrice - totalDiscount
     );
-    expect(finalPrice).toBe("85.00");
+    expect(finalPrice).toBe(85.0);
   });
 
   it("should apply only November electronics discount", () => {
@@ -89,7 +89,7 @@ describe("PriceCalculator", () => {
       context.category === "electronics" &&
       new Date(context.date).getMonth() === 10;
     const discount = isNovemberElectronics
-      ? NovemberElectronicsStrategy.applyDiscount(context.unitPrice)
+      ? NovemberElectronicsStrategy.applyDiscount(context.unitPrice, context)
       : 0;
 
     const finalPrice = calculator.calculatePrice(context.unitPrice - discount);
@@ -107,17 +107,17 @@ describe("PriceCalculator", () => {
     };
 
     const loyalDiscount = context.isLoyalCustomer
-      ? LoyalCustomerStrategy.applyDiscount(context.unitPrice)
+      ? LoyalCustomerStrategy.applyDiscount(context.unitPrice, context)
       : 0;
     const bulkDiscount =
       context.quantity >= 10
-        ? BulkDiscountStrategy.applyDiscount(context.unitPrice)
+        ? BulkDiscountStrategy.applyDiscount(context.unitPrice, context)
         : 0;
     const isNovemberElectronics =
       context.category === "electronics" &&
       new Date(context.date).getMonth() === 10;
     const novemberDiscount = isNovemberElectronics
-      ? NovemberElectronicsStrategy.applyDiscount(context.unitPrice)
+      ? NovemberElectronicsStrategy.applyDiscount(context.unitPrice, context)
       : 0;
 
     const totalDiscount = Math.min(

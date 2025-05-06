@@ -19,10 +19,9 @@ export class PriceCalculator {
     let discountedPrice = price;
 
     for (const strategy of this.strategies) {
-      const discount = strategy.applyDiscount(
-        context ? discountedPrice : price,
-        context
-      );
+      const discount = context
+        ? strategy.applyDiscount(discountedPrice, context)
+        : strategy.applyDiscount(price, undefined);
       totalDiscount += discount;
       discountedPrice -= discount;
     }
