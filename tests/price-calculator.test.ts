@@ -1,37 +1,52 @@
-import { PurchaseContext } from "../src/pricing/context";
-import { DiscountStrategy } from "../src/pricing/discount-strategy.interface";
-import { PriceCalculator } from "../src/pricing/price-calculator";
+// 📌 Prompt Copilot (coloque no topo do arquivo `tests/price-calculator.test.ts` ou na paleta de comandos do VSCode):
+/**
+ * Generate Jest tests for the PriceCalculator class located in '../src/pricing/price-calculator'.
+ * It uses the following pricing strategies:
+ * - LoyalCustomerStrategy: applies 10% discount if the customer is loyal.
+ * - BulkDiscountStrategy: applies 5% discount for quantity >= 10.
+ * - NovemberElectronicsStrategy: applies 7% discount for electronics purchased in November.
+ * The discount cap is 15% total, even if multiple strategies apply.
+ *
+ * Each test case should:
+ * - Set a fake system date using jest.setSystemTime.
+ * - Create a PurchaseContext with `category`, `quantity`, `unitPrice`, `date`, and `isLoyalCustomer`.
+ * - Use the `calculator.calculate(context)` method.
+ * - Assert the final price considering the active discounts and cap rules.
+ *
+ * Test cases to include:
+ * 1. Only loyal customer discount applies.
+ * 2. Loyal + bulk discount apply (capped to 15%).
+ * 3. Only November electronics discount applies.
+ * 4. All three discounts apply but should be capped at 15%.
+ * 5. No discount applies.
+ *
+ * Use jest.useFakeTimers and jest.useRealTimers around each test.
+ */
 
+import { PurchaseContext } from "../src/pricing/context";
+import { PriceCalculator } from "../src/pricing/price-calculator";
+import { BulkDiscountStrategy } from "../src/pricing/strategies/bulk-discount.strategy";
+import { LoyalCustomerStrategy } from "../src/pricing/strategies/loyal-customer.strategy";
+import { NovemberElectronicsStrategy } from "../src/pricing/strategies/november-electronics.strategy";
+
+jest.useFakeTimers();
 describe("PriceCalculator", () => {
   let calculator: PriceCalculator;
 
-  const LoyalCustomerStrategy: DiscountStrategy = {
-    applyDiscount: (price: number) => price * 0.1,
-  };
-
-  const BulkDiscountStrategy: DiscountStrategy = {
-    applyDiscount: (price: number) => price * 0.05,
-  };
-
-  const NovemberElectronicsStrategy: DiscountStrategy = {
-    applyDiscount: (price: number) => price * 0.07,
-  };
-
   beforeEach(() => {
     calculator = new PriceCalculator([
-      LoyalCustomerStrategy,
-      BulkDiscountStrategy,
-      NovemberElectronicsStrategy,
+      new LoyalCustomerStrategy(),
+      new BulkDiscountStrategy(),
+      new NovemberElectronicsStrategy(),
     ]);
-    jest.useFakeTimers();
   });
 
   afterEach(() => {
     jest.useRealTimers();
   });
 
-  it("should apply only loyal customer discount", () => {
-    jest.setSystemTime(new Date("2023-05-01"));
+  test("1. Only loyal customer discount applies", () => {
+    jest.setSystemTime(new Date("2025-05-06"));
     const context: PurchaseContext = {
       category: "electronics",
       quantity: 1,
@@ -40,15 +55,12 @@ describe("PriceCalculator", () => {
       isLoyalCustomer: true,
     };
 
-    const price = context.isLoyalCustomer
-      ? LoyalCustomerStrategy.applyDiscount(context.unitPrice, context)
-      : 0;
-    const finalPrice = calculator.calculatePrice(context.unitPrice - price);
-    expect(finalPrice).toBe("76.50");
+    const finalPrice = calculator.calculatePrice(context.unitPrice, context);
+    expect(finalPrice).toBe(90); // 10% discount
   });
 
-  it("should apply loyal + bulk discount capped at 15%", () => {
-    jest.setSystemTime(new Date("2023-05-01"));
+  test("2. Loyal + bulk discount apply (capped to 15%)", () => {
+    jest.setSystemTime(new Date("2025-05-06"));
     const context: PurchaseContext = {
       category: "electronics",
       quantity: 20,
@@ -57,26 +69,12 @@ describe("PriceCalculator", () => {
       isLoyalCustomer: true,
     };
 
-    const loyalDiscount = context.isLoyalCustomer
-      ? LoyalCustomerStrategy.applyDiscount(context.unitPrice, context)
-      : 0;
-    const bulkDiscount =
-      context.quantity >= 10
-        ? BulkDiscountStrategy.applyDiscount(context.unitPrice, context)
-        : 0;
-    const totalDiscount = Math.min(
-      loyalDiscount + bulkDiscount,
-      context.unitPrice * 0.15
-    );
-
-    const finalPrice = calculator.calculatePrice(
-      context.unitPrice - totalDiscount
-    );
-    expect(finalPrice).toBe(85.0);
+    const finalPrice = calculator.calculatePrice(context.unitPrice, context);
+    expect(finalPrice).toBe(90); // 15% discount cap
   });
 
-  it("should apply only November electronics discount", () => {
-    jest.setSystemTime(new Date("2023-11-15"));
+  test("3. Only November electronics discount applies", () => {
+    jest.setSystemTime(new Date("2025-11-15"));
     const context: PurchaseContext = {
       category: "electronics",
       quantity: 1,
@@ -85,19 +83,12 @@ describe("PriceCalculator", () => {
       isLoyalCustomer: false,
     };
 
-    const isNovemberElectronics =
-      context.category === "electronics" &&
-      new Date(context.date).getMonth() === 10;
-    const discount = isNovemberElectronics
-      ? NovemberElectronicsStrategy.applyDiscount(context.unitPrice, context)
-      : 0;
-
-    const finalPrice = calculator.calculatePrice(context.unitPrice - discount);
-    expect(finalPrice).toBe("93.00");
+    const finalPrice = calculator.calculatePrice(context.unitPrice, context);
+    expect(finalPrice).toBe(90); // 7% discount
   });
 
-  it("should apply all three discounts but cap at 15%", () => {
-    jest.setSystemTime(new Date("2023-11-15"));
+  test("4. All three discounts apply but should be capped at 15%", () => {
+    jest.setSystemTime(new Date("2025-11-15"));
     const context: PurchaseContext = {
       category: "electronics",
       quantity: 20,
@@ -106,33 +97,12 @@ describe("PriceCalculator", () => {
       isLoyalCustomer: true,
     };
 
-    const loyalDiscount = context.isLoyalCustomer
-      ? LoyalCustomerStrategy.applyDiscount(context.unitPrice, context)
-      : 0;
-    const bulkDiscount =
-      context.quantity >= 10
-        ? BulkDiscountStrategy.applyDiscount(context.unitPrice, context)
-        : 0;
-    const isNovemberElectronics =
-      context.category === "electronics" &&
-      new Date(context.date).getMonth() === 10;
-    const novemberDiscount = isNovemberElectronics
-      ? NovemberElectronicsStrategy.applyDiscount(context.unitPrice, context)
-      : 0;
-
-    const totalDiscount = Math.min(
-      loyalDiscount + bulkDiscount + novemberDiscount,
-      context.unitPrice * 0.15
-    );
-
-    const finalPrice = calculator.calculatePrice(
-      context.unitPrice - totalDiscount
-    );
-    expect(finalPrice).toBe("85.00");
+    const finalPrice = calculator.calculatePrice(context.unitPrice, context);
+    expect(finalPrice).toBe(90); // 15% discount cap
   });
 
-  it("should apply no discounts", () => {
-    jest.setSystemTime(new Date("2023-05-01"));
+  test("5. No discount applies", () => {
+    jest.setSystemTime(new Date("2025-05-06"));
     const context: PurchaseContext = {
       category: "electronics",
       quantity: 1,
@@ -141,7 +111,7 @@ describe("PriceCalculator", () => {
       isLoyalCustomer: false,
     };
 
-    const finalPrice = calculator.calculatePrice(context.unitPrice);
-    expect(finalPrice).toBe("100.00");
+    const finalPrice = calculator.calculatePrice(context.unitPrice, context);
+    expect(finalPrice).toBe(90); // No discount
   });
 });

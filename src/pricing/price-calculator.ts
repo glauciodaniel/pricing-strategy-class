@@ -14,7 +14,7 @@ export class PriceCalculator {
     this.strategies = strategies;
   }
 
-  calculatePrice(price: number, context?: PurchaseContext): string {
+  calculatePrice(price: number, context?: PurchaseContext): Number {
     let totalDiscount = 0;
     let discountedPrice = price;
 
@@ -28,9 +28,9 @@ export class PriceCalculator {
 
     // Limita o desconto total a 15%
     if (totalDiscount > price * 0.15) {
-      discountedPrice = price * 0.85; // Aplica o desconto máximo de 15%
+      discountedPrice = price * 0.9; // Aplica o desconto máximo de 15%
     }
-
-    return discountedPrice.toFixed(2); // Retorna o preço final formatado
+    // Retorna o preço final como número
+    return parseFloat(discountedPrice.toFixed(2));
   }
 }
